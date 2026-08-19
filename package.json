@@ -1,6 +1,6 @@
 {
   "name": "wiki-security-hitchhiker-passport",
-  "version": "0.14.0-hitchhiker.1",
+  "version": "0.14.0-hitchhiker.2",
   "description": "wiki-security-passportjs 0.14.0, unmodified, plus the hitchhiker client bootstrap appended to client/security.js \u2014 loads wiki-ux.js and the terms interceptor on every page. OAuth login is upstream's. See README for how to re-fork on a new upstream.",
   "author": "Paul Rodwell <paul.rodwell@btinternet.com> (http://rodwell.me)",
   "license": "MIT",

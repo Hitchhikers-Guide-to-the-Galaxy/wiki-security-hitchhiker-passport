@@ -515,43 +515,34 @@ if (typeof module !== 'undefined' && module.exports) {
 
 /* ── wiki-security-hitchhiker-passport ─────────────────────────────────────────
    Everything ABOVE this line is upstream wiki-security-passportjs, unmodified.
-   Everything BELOW is the appended hitchhiker bootstrap block, copied from
-   wiki-security-hitchhiker (the friends-fork). To upgrade upstream: copy the new
-   client/security.js over this file and re-append everything below this line.
+   Everything BELOW is the appended hitchhiker bootstrap. To upgrade upstream:
+   copy the new client/security.js over this file and re-append everything below
+   this line.
    ────────────────────────────────────────────────────────────────────────────── */
 
-/* wiki-security-hitchhiker — bootstrap the hitchhiker client UX layer (wiki-ux.js)
-   on every page. This security client is loaded globally via wiki.security(user),
-   so this is the farm-wide injection point. Served from wiki-plugin-hitchhiker. */
+/* Bootstrap the hitchhiker client layer on every page. This security client is
+   loaded globally via wiki.security(user), so it is the farm-wide injection
+   point. Each entry is a plugin's client script, served by that plugin; a plugin
+   that is not installed simply 404s and the rest still load. Since hitchhiker
+   0.5.0 the layer is three plugins, not one. */
 ;(function () {
-  try {
-    if (document.getElementById('wiki-ux-loader')) return
-    var s = document.createElement('script')
-    s.id = 'wiki-ux-loader'
-    // Dev cache-bust: always fetch fresh on *.localhost (the dev farm); let
-    // public domains cache normally. Remove/ignore once published.
-    var bust = /localhost$/.test(location.hostname) ? '?v=' + Date.now() : ''
-    s.src = '/plugins/hitchhiker/wiki-ux.js' + bust
-    s.defer = true
-    ;(document.head || document.documentElement).appendChild(s)
-  } catch (e) {
-    if (window.console) console.error('[wiki-security-hitchhiker-passport] wiki-ux bootstrap failed', e)
-  }
-})();
-
-/* wiki-security-hitchhiker — bootstrap the terms fork interceptor
-   (wiki-plugin-terms) on every page, so forks are terms-checked even when no
-   terms item is in the lineup. Served from wiki-plugin-terms. */
-;(function () {
-  try {
-    if (document.getElementById('wiki-terms-loader')) return
-    var s = document.createElement('script')
-    s.id = 'wiki-terms-loader'
-    var bust = /localhost$/.test(location.hostname) ? '?v=' + Date.now() : ''
-    s.src = '/plugins/terms/wiki-terms.js' + bust
-    s.defer = true
-    ;(document.head || document.documentElement).appendChild(s)
-  } catch (e) {
-    if (window.console) console.error('[wiki-security-hitchhiker-passport] wiki-terms bootstrap failed', e)
+  var bust = /localhost$/.test(location.hostname) ? '?v=' + Date.now() : ''
+  var scripts = [
+    ['wiki-ux-loader',          '/plugins/hitchhiker/wiki-ux.js'],          // page-flag tools, drop-to-preview, hearth guard
+    ['wiki-chooser-loader',     '/plugins/chooser/wiki-chooser.js'],        // the factory chooser
+    ['wiki-fish-picker-loader', '/plugins/fish-picker/wiki-fish-picker.js'],// site identity flag editor
+    ['wiki-terms-loader',       '/plugins/terms/wiki-terms.js']             // terms fork interceptor
+  ]
+  for (var i = 0; i < scripts.length; i++) {
+    try {
+      if (document.getElementById(scripts[i][0])) continue
+      var s = document.createElement('script')
+      s.id = scripts[i][0]
+      s.src = scripts[i][1] + bust
+      s.defer = true
+      ;(document.head || document.documentElement).appendChild(s)
+    } catch (e) {
+      if (window.console) console.error('[wiki-security-hitchhiker-passport] bootstrap failed for ' + scripts[i][1], e)
+    }
   }
 })();
