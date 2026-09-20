@@ -524,14 +524,19 @@ if (typeof module !== 'undefined' && module.exports) {
    loaded globally via wiki.security(user), so it is the farm-wide injection
    point. Each entry is a plugin's client script, served by that plugin; a plugin
    that is not installed simply 404s and the rest still load. Since hitchhiker
-   0.5.0 the layer is three plugins, not one. */
+   0.5.0 the layer is three plugins, not one. Only list a plugin that is actually
+   installed: an entry for a missing plugin 404s on EVERY page of EVERY site and
+   the browser logs two console errors for it. */
 ;(function () {
   var bust = /localhost$/.test(location.hostname) ? '?v=' + Date.now() : ''
   var scripts = [
     ['wiki-ux-loader',          '/plugins/hitchhiker/wiki-ux.js'],          // page-flag tools, drop-to-preview, hearth guard
     ['wiki-chooser-loader',     '/plugins/chooser/wiki-chooser.js'],        // the factory chooser
-    ['wiki-fish-picker-loader', '/plugins/fish-picker/wiki-fish-picker.js'],// site identity flag editor
-    ['wiki-terms-loader',       '/plugins/terms/wiki-terms.js']             // terms fork interceptor
+    ['wiki-fish-picker-loader', '/plugins/fish-picker/wiki-fish-picker.js'] // site identity flag editor
+    // NOTE: ['wiki-terms-loader', '/plugins/terms/wiki-terms.js'] was listed here
+    // in 0.14.0-hitchhiker.2. wiki-plugin-terms is not published to npm and is not
+    // installed on any farm, so every page load 404'd and the browser logged a MIME
+    // error. Restore this line in the same release that installs the plugin.
   ]
   for (var i = 0; i < scripts.length; i++) {
     try {

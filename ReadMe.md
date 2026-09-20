@@ -9,10 +9,14 @@ passportjs — the OAuth module the Keycloak login needs — with a short block 
 `client/security.js` that loads:
 
 - `/plugins/hitchhiker/wiki-ux.js` — the house UX layer (`wiki-plugin-hitchhiker`)
-- `/plugins/terms/wiki-terms.js` — the terms fork interceptor (`wiki-plugin-terms`)
 
-Both are optional at runtime: if the plugin is not installed the `<script>` 404s and
-nothing else happens.
+These are optional at runtime — if a plugin is not installed the `<script>` 404s and
+nothing else breaks — but a 404 is logged as two console errors on every page of every
+site in the farm, so only list plugins that are actually installed.
+
+`/plugins/terms/wiki-terms.js` (`wiki-plugin-terms`, the terms fork interceptor) was
+listed in 0.14.0-hitchhiker.2 and removed in `.3`: the plugin is unpublished and was
+never installed. Re-add it in the release that installs it.
 
 ## The rules this fork keeps
 
