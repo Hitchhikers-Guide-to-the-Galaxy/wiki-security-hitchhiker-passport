@@ -367,7 +367,7 @@ module.exports = exports = (log, loga, argv) ->
 
 
       info = {
-        wikiName: cookies['wikiName']
+        wikiName: cookies['wikiName'] or req.hostname
         wikiHostName: if wikiHost
           "part of " + req.hostname + " wiki farm"
         else
@@ -382,7 +382,7 @@ module.exports = exports = (log, loga, argv) ->
       cookies = req.cookies
 
       info = {
-        wikiName: cookies['wikiName']
+        wikiName: cookies['wikiName'] or req.hostname
         wikiHostName: if wikiHost
           "part of " + req.hostname + " wiki farm"
         else
@@ -477,7 +477,7 @@ module.exports = exports = (log, loga, argv) ->
             when "google" then schemeButtons.push({button: "<a href='/auth/google' class='scheme-button google-button'><span>Google</span></a>"})
 
         info = {
-          wikiName: cookies['wikiName']
+          wikiName: cookies['wikiName'] or req.hostname
           wikiHostName: if wikiHost
             "part of " + req.hostname + " wiki farm"
           else
