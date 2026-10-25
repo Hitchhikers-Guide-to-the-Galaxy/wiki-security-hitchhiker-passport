@@ -156,6 +156,93 @@ module.exports = exports = (log, loga, argv) ->
 
   security.defineRoutes = (app, cors, updateOwner) ->
 
+    # farm-session v2: sign in once, be the author on every site you own on this farm.
+    # Off unless the farm config names farm_session_domain: one domain ("private.fish"), a
+    # comma-separated string or a list (["private.fish", "secret.fish"]). For a request whose
+    # host is in one of them, sign-in also sets a cookie (farm_session_cookie, default
+    # wikiFarmSession) with Domain=<that domain>, signed with a key derived from the farm's
+    # cookieSecret and the domain. A site with no session of its own adopts it; isAuthorized
+    # still compares owner.json, so other people's sites refuse. Signing out replaces it with a
+    # signed "signed out" marker: adopted sessions drop, old sign-ins no longer re-seed it.
+    # Farm Sign-In Plan: https://pi.private.fish/view/farm-sign-in-plan
+    farmDomains = [].concat(argv.farm_session_domain or [])
+      .join(',').split(',')
+      .map((d) -> d.trim().toLowerCase().replace(/^\./, ''))
+      .filter((d) -> d)
+    if farmDomains.length and argv.cookieSecret
+      crypto = require 'crypto'
+      FARM_COOKIE = argv.farm_session_cookie or 'wikiFarmSession'
+      farmTTL = (Number(argv.session_duration) or 7) * 24 * 60 * 60 * 1000
+      farmKeys = {}
+      for d in farmDomains
+        farmKeys[d] = crypto.createHmac('sha256', String(argv.cookieSecret)).update('wikiFarmSession:' + d).digest()
+      farmSign = (dom, body) -> crypto.createHmac('sha256', farmKeys[dom]).update(body).digest('base64url')
+      # the longest configured domain this request's host sits in, or null
+      farmDomainOf = (req) ->
+        host = (req.hostname or '').toLowerCase()
+        best = null
+        for d in farmDomains when host is d or host.endsWith('.' + d)
+          best = d if not best or d.length > best.length
+        best
+      # the signed payload, or null for absent, forged, foreign or expired
+      farmRead = (req, dom) ->
+        raw = req.cookies?[FARM_COOKIE]
+        return null unless typeof raw is 'string'
+        [body, sig] = raw.split('.')
+        return null unless body and sig
+        want = Buffer.from(farmSign(dom, body))
+        got = Buffer.from(sig)
+        return null unless want.length is got.length and crypto.timingSafeEqual(want, got)
+        try
+          p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'))
+        catch e
+          return null
+        return null unless p?.v is 1 and typeof p.exp is 'number' and p.exp > Date.now()
+        p
+      farmSet = (res, dom, payload) ->
+        body = Buffer.from(JSON.stringify(payload)).toString('base64url')
+        value = body + '.' + farmSign(dom, body)
+        return if value.length > 3000
+        res.cookie(FARM_COOKIE, value, {domain: dom, path: '/', httpOnly: true, sameSite: 'lax', maxAge: farmTTL})
+      farmMint = (res, dom, user) ->
+        farmSet res, dom, {v: 1, u: user, jti: crypto.randomBytes(12).toString('hex'), exp: Date.now() + farmTTL}
+      farmSignOut = (res, dom) ->
+        farmSet res, dom, {v: 1, out: true, exp: Date.now() + farmTTL}
+
+      app.use (req, res, next) ->
+        dom = farmDomainOf(req)
+        return next() unless req.session and dom
+        farm = farmRead(req, dom)
+        user = req.session.passport?.user
+        if req.session.farmSession
+          if not farm?.u or farm.jti isnt req.session.farmSession
+            # adopted earlier: it lives only as long as the farm cookie it came from
+            req.session.reset()
+            user = undefined
+          else if not _.isEqual(user, farm.u)
+            # a real sign-in has replaced the adopted one on this site
+            delete req.session.farmSession
+        if not user and farm?.u
+          req.session.passport = {user: farm.u}
+          req.session.farmSession = farm.jti
+        else if user and not req.session.farmSession and not farm
+          # a sign-in made on this site before the switch seeds the farm cookie
+          farmMint(res, dom, user)
+        next()
+
+      app.get '/auth/loginDone', (req, res, next) ->
+        dom = farmDomainOf(req)
+        user = req.session?.passport?.user
+        if dom and user and not _.isEmpty(user)
+          delete req.session.farmSession
+          farmMint(res, dom, user)
+        next()
+
+      app.get '/logout', (req, res, next) ->
+        dom = farmDomainOf(req)
+        farmSignOut(res, dom) if dom
+        next()
+
     hbs = create({
       extname: '.html'
       layoutsDir: path.join(__dirname, '..', 'views')
