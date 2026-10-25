@@ -1,0 +1,28 @@
+[
+ {
+  "name": "login-gate-query-bypass",
+  "marker": "test req.path",
+  "old": "return next() unless /\\.(json|html)$/.test req.url",
+  "new": "return next() unless /\\.(json|html)\\/?$/i.test req.path",
+  "also": [
+   [
+    "return res.json(['Login Required']) if req.url == '/system/sitemap.json'",
+    "return res.json(['Login Required']) if req.path.replace(/\\/$/, '') == '/system/sitemap.json'",
+    "req.path.replace("
+   ]
+  ]
+ },
+ {
+  "name": "login-gate-files",
+  "marker": "login-gate-files",
+  "old": "      app.all '*splat', (req, res, next) ->\n        # don't protect site flag,\n        return next() if req.url is '/favicon.png'\n        return next() unless /\\.(json|html)\\/?$/i.test req.path\n",
+  "new": "      # login-gate-files: login-to-view also covers what carries a site's content without\n      # being page json: uploaded assets, the assets plugin's listings, the farm's MCP door\n      # and the xml sitemap. Anonymous requests get 403 Login Required.\n      gatedFiles = /^\\/(assets|plugin\\/assets|system\\/api\\/mcp|sitemap\\.xml)(\\/|$)/i\n\n      app.all '*splat', (req, res, next) ->\n        # don't protect site flag,\n        return next() if req.url is '/favicon.png'\n        unless /\\.(json|html)\\/?$/i.test req.path\n          filePath = req.path\n          try filePath = decodeURIComponent(filePath).replace(/\\/{2,}/g, '/')\n          return next() unless gatedFiles.test filePath\n          return next() if (isAuthorized(req) and (owner isnt '')) or allowedToView(req)\n          return res.status(403).type('text/plain').send('Login Required')\n",
+  "also": [
+   [
+    "    # if configured, enforce restricted access to json\n",
+    "    # assets-list-error-scrub: the assets plugin answers a folder it cannot read with the\n    # raw fs error, which names the server's disk path. Pass on only the error code.\n    app.get '/plugin/assets/list', (req, res, next) ->\n      send = res.json.bind(res)\n      res.json = (body) ->\n        body.error = {code: body.error.code or 'ERROR'} if body?.error\n        send body\n      next()\n    # Its index throws on a site with no assets folder, and the error page carries a\n    # stack trace with server paths. No folder means no files.\n    app.get '/plugin/assets/index', (req, res, next) ->\n      return res.json([]) unless fs.existsSync(argv.assets)\n      next()\n\n    # if configured, enforce restricted access to json\n",
+    "assets-list-error-scrub"
+   ]
+  ]
+ }
+]
