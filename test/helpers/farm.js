@@ -9,6 +9,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const crypto = require('node:crypto')
+const util = require('node:util')
 const { pathToFileURL } = require('node:url')
 const express = require('express')
 const cookieParser = require('cookie-parser')
@@ -21,8 +22,8 @@ const noop = () => {}
 // ---- the module logs with console.log directly; keep it out of the test output ----
 const logs = []
 const real = { log: console.log, error: console.error }
-console.log = (...a) => { logs.push(a.map(String).join(' ')) }
-console.error = (...a) => { logs.push('ERROR ' + a.map(String).join(' ')) }
+console.log = (...a) => { logs.push(util.format(...a)) }
+console.error = (...a) => { logs.push('ERROR ' + util.format(...a)) }
 process.on('exit', () => { console.log = real.log; console.error = real.error })
 
 // wiki-server 0.27: `const securityModule = await import(argv.security_type)`
@@ -211,8 +212,8 @@ function standIn(req, res, security, getOwner, argv) {
     return res.send('ok')
   }
   let m
-  if ((m = /^\/([a-z0-9-]+)\.json$/i.exec(p))) return res.json({ title: m[1], story: [{ type: 'paragraph', id: 'a1b2c3d4e5f60718', text: 'page body' }] })
-  if ((m = /^\/([a-z0-9-]+)\.html$/i.exec(p))) return res.type('html').send('<html>page body</html>')
+  if ((m = /^\/([a-z0-9-]+)\.json$/.exec(p))) return res.json({ title: m[1], story: [{ type: 'paragraph', id: 'a1b2c3d4e5f60718', text: 'page body' }] })
+  if ((m = /^\/([a-z0-9-]+)\.html$/.exec(p))) return res.type('html').send('<html>page body</html>')
   res.sendStatus(404)
 }
 
